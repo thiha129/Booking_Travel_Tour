@@ -150,6 +150,26 @@
   font-size: 1.05rem;
 }
 
+.booking-cancel-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: #fff !important;
+  color: #b91c1c !important;
+  border: 1px solid #fca5a5 !important;
+  font-weight: 600;
+}
+
+.booking-cancel-btn:hover:not(:disabled) {
+  background: #fef2f2 !important;
+  color: #991b1b !important;
+}
+
+.booking-cancel-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
 @media only screen and (max-width: 992px) {
   .booking-detail-card {
     grid-template-columns: 1fr;

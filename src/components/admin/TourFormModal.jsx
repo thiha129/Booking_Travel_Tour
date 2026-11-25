@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { Modal, ModalBody, Button } from "reactstrap";
 import { useLanguage } from "../../i18n/LanguageContext";
 import { uploadSingleImage, uploadMultipleImages } from "../../utils/uploadImage";
+import { remainingSeats, toDateInputValue } from "../../utils/departures";
 
 const EMPTY_FORM = {
   title: "",
@@ -12,12 +13,22 @@ const EMPTY_FORM = {
   desc: "",
   price: "",
   maxGroupSize: "",
+  durationDays: "1",
   featured: false,
 };
+
+const newDepartureRow = (capacity = "") => ({
+  key: `new-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+  _id: "",
+  date: "",
+  capacity: capacity === "" ? "" : String(capacity),
+  bookedSeats: 0,
+});
 
 const TourFormModal = ({ isOpen, tour, onClose, onSubmit, submitting }) => {
   const { t } = useLanguage();
   const [form, setForm] = useState(EMPTY_FORM);
+  const [departures, setDepartures] = useState([]);
   const [galleryPhotos, setGalleryPhotos] = useState([]);
   const [galleryUrlInput, setGalleryUrlInput] = useState("");
   const [photoError, setPhotoError] = useState(false);
@@ -42,8 +53,20 @@ const TourFormModal = ({ isOpen, tour, onClose, onSubmit, submitting }) => {
         desc: tour.desc || "",
         price: tour.price ?? "",
         maxGroupSize: tour.maxGroupSize ?? "",
+        durationDays: tour.durationDays ?? 1,
         featured: Boolean(tour.featured),
       });
+      setDepartures(
+        Array.isArray(tour.departures)
+          ? tour.departures.map((item) => ({
+              key: item._id || `dep-${item.date}`,
+              _id: item._id || "",
+              date: toDateInputValue(item.date),
+              capacity: String(item.capacity ?? tour.maxGroupSize ?? ""),
+              bookedSeats: Number(item.bookedSeats || 0),
+            }))
+          : []
+      );
       setGalleryPhotos(gallery);
       setGalleryUrlInput("");
       setPhotoError(false);
@@ -52,6 +75,7 @@ const TourFormModal = ({ isOpen, tour, onClose, onSubmit, submitting }) => {
     }
 
     setForm(EMPTY_FORM);
+    setDepartures([]);
     setGalleryPhotos([]);
     setGalleryUrlInput("");
     setPhotoError(false);
@@ -145,6 +169,21 @@ const TourFormModal = ({ isOpen, tour, onClose, onSubmit, submitting }) => {
     }
   };
 
+  const updateDeparture = (key, field, value) => {
+    setDepartures((prev) =>
+      prev.map((item) => (item.key === key ? { ...item, [field]: value } : item))
+    );
+  };
+
+  const addDeparture = () => {
+    setDepartures((prev) => [...prev, newDepartureRow(form.maxGroupSize)]);
+  };
+
+  const removeDeparture = (row) => {
+    if (Number(row.bookedSeats) > 0) return;
+    setDepartures((prev) => prev.filter((item) => item.key !== row.key));
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
 
@@ -160,7 +199,15 @@ const TourFormModal = ({ isOpen, tour, onClose, onSubmit, submitting }) => {
       desc: form.desc.trim(),
       price: Number(form.price),
       maxGroupSize: Number(form.maxGroupSize),
+      durationDays: Number(form.durationDays) || 1,
       featured: form.featured,
+      departures: departures
+        .filter((item) => item.date)
+        .map((item) => ({
+          ...(item._id ? { _id: item._id } : {}),
+          date: item.date,
+          capacity: Number(item.capacity) || Number(form.maxGroupSize) || 1,
+        })),
     });
   };
 
@@ -242,7 +289,7 @@ const TourFormModal = ({ isOpen, tour, onClose, onSubmit, submitting }) => {
               <i className="ri-price-tag-3-line"></i>
               {t("admin.form.sections.pricing")}
             </h4>
-            <div className="admin-tour-form__grid admin-tour-form__grid--3">
+            <div className="admin-tour-form__grid admin-tour-form__grid--4">
               <label className="admin-tour-form__field">
                 <span>{t("admin.form.distance")}</span>
                 <div className="admin-tour-form__input-wrap">
@@ -285,7 +332,98 @@ const TourFormModal = ({ isOpen, tour, onClose, onSubmit, submitting }) => {
                   required
                 />
               </label>
+              <label className="admin-tour-form__field">
+                <span>{t("admin.form.durationDays")}</span>
+                <input
+                  id="durationDays"
+                  type="number"
+                  min="1"
+                  max="60"
+                  value={form.durationDays}
+                  onChange={handleChange}
+                  placeholder="1"
+                  required
+                />
+              </label>
             </div>
+          </section>
+
+          <section className="admin-tour-form__section">
+            <h4 className="admin-tour-form__section-title">
+              <i className="ri-calendar-event-line"></i>
+              {t("admin.form.sections.departures")}
+            </h4>
+            <p className="admin-tour-form__hint">{t("admin.form.departuresHint")}</p>
+            {departures.length === 0 ? (
+              <div className="admin-tour-form__gallery-empty">
+                <i className="ri-calendar-line"></i>
+                <p>{t("admin.form.departuresEmpty")}</p>
+              </div>
+            ) : (
+              <ul className="admin-departures">
+                {departures.map((row) => {
+                  const booked = Number(row.bookedSeats || 0);
+                  const left = remainingSeats({
+                    capacity: Number(row.capacity) || 0,
+                    bookedSeats: booked,
+                  });
+                  return (
+                    <li key={row.key} className="admin-departures__row">
+                      <label>
+                        <span>{t("admin.form.departureDate")}</span>
+                        <input
+                          type="date"
+                          value={row.date}
+                          onChange={(e) =>
+                            updateDeparture(row.key, "date", e.target.value)
+                          }
+                        />
+                      </label>
+                      <label>
+                        <span>{t("admin.form.departureCapacity")}</span>
+                        <input
+                          type="number"
+                          min={Math.max(1, booked)}
+                          value={row.capacity}
+                          onChange={(e) =>
+                            updateDeparture(row.key, "capacity", e.target.value)
+                          }
+                        />
+                      </label>
+                      <div className="admin-departures__meta">
+                        <span>
+                          {t("admin.form.bookedSeats")}: {booked}
+                        </span>
+                        <span>
+                          {t("booking.seatsLeft", { count: left })}
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        className="admin-tour-form__gallery-remove"
+                        onClick={() => removeDeparture(row)}
+                        disabled={booked > 0}
+                        title={
+                          booked > 0
+                            ? t("admin.form.cannotRemoveBookedDeparture")
+                            : t("admin.form.removeDeparture")
+                        }
+                      >
+                        <i className="ri-delete-bin-line"></i>
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+            <button
+              type="button"
+              className="admin-tour-form__gallery-add-btn"
+              onClick={addDeparture}
+            >
+              <i className="ri-add-line"></i>
+              {t("admin.form.addDeparture")}
+            </button>
           </section>
 
           <section className="admin-tour-form__section">

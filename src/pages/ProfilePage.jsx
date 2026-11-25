@@ -16,6 +16,7 @@ const ProfilePage = () => {
   const [form, setForm] = useState({
     username: "",
     email: "",
+    currentPassword: "",
     password: "",
     photo: "",
   });
@@ -32,6 +33,7 @@ const ProfilePage = () => {
     setForm({
       username: user.username || "",
       email: user.email || "",
+      currentPassword: "",
       password: "",
       photo: user.photo || "",
     });
@@ -94,7 +96,13 @@ const ProfilePage = () => {
       };
 
       if (form.password.trim()) {
+        if (!form.currentPassword.trim()) {
+          toast.error(t("profile.currentPasswordRequired"));
+          setSaving(false);
+          return;
+        }
         payload.password = form.password;
+        payload.currentPassword = form.currentPassword;
       }
 
       const res = await fetch(`${BASE_URL}/users/${user._id}`, {
@@ -106,11 +114,17 @@ const ProfilePage = () => {
       const result = await res.json();
 
       if (!res.ok) {
-        throw new Error(result.message || t("profile.saveFailed"));
+        const message =
+          result.code === "CURRENT_PASSWORD_REQUIRED"
+            ? t("profile.currentPasswordRequired")
+            : result.code === "CURRENT_PASSWORD_INCORRECT"
+              ? t("profile.currentPasswordIncorrect")
+              : result.message || t("profile.saveFailed");
+        throw new Error(message);
       }
 
       dispatch({ type: "UPDATE_USER", payload: result.data });
-      setForm((prev) => ({ ...prev, password: "" }));
+      setForm((prev) => ({ ...prev, password: "", currentPassword: "" }));
       toast.success(t("profile.saveSuccess"));
     } catch (err) {
       toast.error(err.message || t("profile.saveFailed"));
@@ -319,6 +333,19 @@ const ProfilePage = () => {
                   <i className="ri-lock-password-line"></i>
                   {t("profile.sections.security")}
                 </h4>
+                {form.password.trim() && (
+                  <label className="profile-form__field">
+                    <span>{t("profile.currentPassword")}</span>
+                    <input
+                      id="currentPassword"
+                      type="password"
+                      value={form.currentPassword}
+                      onChange={handleChange}
+                      autoComplete="current-password"
+                      required
+                    />
+                  </label>
+                )}
                 <label className="profile-form__field">
                   <span>{t("admin.userForm.passwordOptional")}</span>
                   <div className="profile-form__password">

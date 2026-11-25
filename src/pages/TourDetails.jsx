@@ -124,6 +124,9 @@ const TourDetails = () => {
         if (res.status === 409) {
           return toast.warning(t("toast.alreadyReviewed"));
         }
+        if (result.code === "REVIEW_REQUIRES_BOOKING") {
+          return toast.warning(t("tours.reviewPaidOnly"));
+        }
         return toast.error(result.message || t("toast.reviewFailed"));
       }
       toast.success(result.message || t("toast.reviewSuccess"));
@@ -419,6 +422,10 @@ const TourDetails = () => {
                         className="tour__review-form"
                         onSubmit={submitHandler}
                       >
+                        <p className="tour__review-notice">
+                          <i className="ri-information-line"></i>
+                          {t("tours.reviewPaidOnly")}
+                        </p>
                         <label className="tour__review-form-label">
                           {t("tours.yourRating")}
                         </label>

@@ -1,14 +1,16 @@
-import { differenceInCalendarDays } from "date-fns";
-
 export const BOOKING_SERVICE_FEE = 10;
+
+const utcDay = (date) =>
+  Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate());
 
 export const getBookingNights = (checkIn, checkOut) => {
   if (!checkIn || !checkOut) return 0;
   const start = new Date(checkIn);
   const end = new Date(checkOut);
   if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return 0;
-  if (end <= start) return 0;
-  return Math.max(differenceInCalendarDays(end, start), 1);
+  const nights = Math.round((utcDay(end) - utcDay(start)) / (1000 * 60 * 60 * 24));
+  if (nights < 1) return 0;
+  return nights;
 };
 
 export const getBookingSubtotal = (price, nights, guestSize) => {

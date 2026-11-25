@@ -1,4 +1,4 @@
-import React, { useContext } from "react";
+import React, { useContext, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { Container } from "reactstrap";
 import { format } from "date-fns";
@@ -17,9 +17,41 @@ const BookingDetailPage = () => {
   const { user } = useContext(AuthContext);
   const { t } = useLanguage();
   const { toast } = useToast();
-  const { data, loading, error } = useFetch(`${BASE_URL}/booking/${id}`, { auth: true });
+  const { data, loading, error, refetch } = useFetch(`${BASE_URL}/booking/${id}`, {
+    auth: true,
+  });
+  const [cancelling, setCancelling] = useState(false);
   const booking = Array.isArray(data) ? data[0] : data;
   const tour = booking?.tours?.[0];
+
+  const handleCancel = async () => {
+    if (!booking?._id || cancelling) return;
+    if (!window.confirm(t("booking.cancelConfirm"))) return;
+
+    setCancelling(true);
+    try {
+      const res = await fetch(`${BASE_URL}/booking/${booking._id}/cancel`, {
+        method: "PATCH",
+        credentials: "include",
+      });
+      const result = await res.json();
+      if (!res.ok) {
+        const message =
+          result.code === "BOOKING_ALREADY_STARTED"
+            ? t("booking.alreadyStarted")
+            : result.code === "BOOKING_ALREADY_CANCELLED"
+              ? t("booking.alreadyCancelled")
+              : result.message || t("booking.cancelFailed");
+        throw new Error(message);
+      }
+      toast.success(t("booking.cancelSuccess"));
+      await refetch();
+    } catch (err) {
+      toast.error(err.message || t("booking.cancelFailed"));
+    } finally {
+      setCancelling(false);
+    }
+  };
 
   const handleExportInvoice = () => {
     try {
@@ -134,6 +166,17 @@ const BookingDetailPage = () => {
                   >
                     <i className="ri-file-list-3-line" aria-hidden="true"></i>
                     {t("booking.exportInvoice")}
+                  </button>
+                )}
+                {booking.status !== "cancelled" && (
+                  <button
+                    type="button"
+                    className="btn booking-cancel-btn"
+                    onClick={handleCancel}
+                    disabled={cancelling}
+                  >
+                    <i className="ri-close-circle-line" aria-hidden="true"></i>
+                    {cancelling ? t("booking.cancelling") : t("booking.cancelBooking")}
                   </button>
                 )}
               </div>

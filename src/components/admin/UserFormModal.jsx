@@ -6,12 +6,20 @@ import { uploadSingleImage } from "../../utils/uploadImage";
 const EMPTY_FORM = {
   username: "",
   email: "",
+  currentPassword: "",
   password: "",
   role: "user",
   photo: "",
 };
 
-const UserFormModal = ({ isOpen, user, onClose, onSubmit, submitting }) => {
+const UserFormModal = ({
+  isOpen,
+  user,
+  onClose,
+  onSubmit,
+  submitting,
+  requireCurrentPassword = false,
+}) => {
   const { t, language } = useLanguage();
   const [form, setForm] = useState(EMPTY_FORM);
   const [photoMode, setPhotoMode] = useState("url");
@@ -29,6 +37,7 @@ const UserFormModal = ({ isOpen, user, onClose, onSubmit, submitting }) => {
       setForm({
         username: user.username || "",
         email: user.email || "",
+        currentPassword: "",
         password: "",
         role: user.role || "user",
         photo: user.photo || "",
